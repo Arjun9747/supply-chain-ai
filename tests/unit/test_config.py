@@ -24,3 +24,29 @@ def test_invalid_env_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_get_settings_is_cached() -> None:
     get_settings.cache_clear()
     assert get_settings() is get_settings()
+
+
+def test_database_url_requires_password(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SCAI_DB_PASSWORD", raising=False)
+    settings = Settings(_env_file=None)
+    with pytest.raises(ValueError, match="SCAI_DB_PASSWORD"):
+        _ = settings.database_url
+
+
+def test_database_url_escapes_special_characters(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SCAI_DB_PASSWORD", "p@ss/word:1")
+    url = Settings(_env_file=None).database_url.get_secret_value()
+    assert url == "postgresql+psycopg://scai:p%40ss%2Fword%3A1@127.0.0.1:5432/scai"
+
+
+def test_password_never_appears_in_repr_or_str(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SCAI_DB_PASSWORD", "supersecret")
+    settings = Settings(_env_file=None)
+    assert "supersecret" not in repr(settings)
+    assert "supersecret" not in str(settings.database_url)
+
+
+def test_invalid_db_port_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SCAI_DB_PORT", "70000")
+    with pytest.raises(ValidationError, match="db_port"):
+        Settings(_env_file=None)
