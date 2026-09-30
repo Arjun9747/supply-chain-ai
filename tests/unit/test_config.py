@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from scai.core.config import Settings, get_settings
+from scai.core.config import EMBEDDING_DIM, Settings, get_settings
 
 pytestmark = pytest.mark.unit
 
@@ -50,3 +50,13 @@ def test_invalid_db_port_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SCAI_DB_PORT", "70000")
     with pytest.raises(ValidationError, match="db_port"):
         Settings(_env_file=None)
+
+
+def test_embedding_defaults() -> None:
+    assert Settings(_env_file=None).embedding_model == "all-minilm"
+    assert EMBEDDING_DIM == 384
+
+
+def test_embedding_model_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SCAI_EMBEDDING_MODEL", "nomic-embed-text")
+    assert Settings(_env_file=None).embedding_model == "nomic-embed-text"
