@@ -1,9 +1,14 @@
 from functools import lru_cache
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 from urllib.parse import quote
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Output size of the embedding model. This is baked into the database schema
+# (Vector column), so it is a constant, not an env-configurable setting.
+# Measured against Ollama's all-minilm: 384.
+EMBEDDING_DIM: Final = 384
 
 
 class Settings(BaseSettings):
@@ -20,6 +25,7 @@ class Settings(BaseSettings):
     db_user: str = "scai"
     # No default: the password only ever comes from the environment.
     db_password: SecretStr | None = None
+    embedding_model: str = "all-minilm"
 
     @property
     def database_url(self) -> SecretStr:
