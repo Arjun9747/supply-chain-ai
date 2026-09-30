@@ -5,8 +5,12 @@ description = "AI-powered Supply Chain Risk & Logistics Intelligence"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
+  "alembic>=1.20.0",
+  "pgvector>=0.5.0",
+  "psycopg[binary]>=3.3.6",
   "pydantic>=2.7",
   "pydantic-settings>=2.3",
+  "sqlalchemy>=2.1.1",
   "structlog>=24.1",
 ]
 
