@@ -6,8 +6,10 @@ exposed outside the adapters layer.
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -19,12 +21,16 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     false,
+    func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from scai.adapters.db.base import Base, enum_column
+from scai.core.config import EMBEDDING_DIM
 from scai.domain.enums import (
     DisruptionType,
     PurchaseOrderStatus,
@@ -191,3 +197,27 @@ class DisruptionEventRow(Base):
     region: Mapped[str] = mapped_column(String(200))
     started_at: Mapped[datetime] = mapped_column(_TIMESTAMPTZ)
     ended_at: Mapped[datetime | None] = mapped_column(_TIMESTAMPTZ)
+
+
+class DocumentChunkRow(Base):
+    """One retrievable piece of text plus its embedding, for RAG."""
+
+    __tablename__ = "document_chunks"
+    __table_args__ = (
+        CheckConstraint("chunk_index >= 0", name="chunk_index_non_negative"),
+        # Re-ingesting the same source must not create duplicate chunks.
+        UniqueConstraint(
+            "source_ref", "chunk_index", name="uq_document_chunks_source_ref_chunk_index"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    # Where the text came from, e.g. "disruption_events:<uuid>" or a file name.
+    source_ref: Mapped[str] = mapped_column(String(300))
+    chunk_index: Mapped[int] = mapped_column(Integer)
+    content: Mapped[str] = mapped_column(Text)
+    chunk_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb")
+    )
+    embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM))
+    created_at: Mapped[datetime] = mapped_column(_TIMESTAMPTZ, server_default=func.now())
