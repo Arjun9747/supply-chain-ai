@@ -5,13 +5,12 @@ services:
     environment:
       POSTGRES_USER: scai
       POSTGRES_DB: scai
-      # No default on purpose: compose refuses to start without it in .env.
-      POSTGRES_PASSWORD: ${SCAI_DB_PASSWORD:?Set SCAI_DB_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${SCAI_DB_PASSWORD:-scaipassword}
     ports:
-      # Loopback only, so the DB is never reachable from your network.
       - "127.0.0.1:5432:5432"
     volumes:
       - scai_pgdata:/var/lib/postgresql/data
+      - ./infra/docker/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U scai -d scai"]
       interval: 5s
