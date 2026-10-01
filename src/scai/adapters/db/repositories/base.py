@@ -1,4 +1,5 @@
 from typing import Generic, TypeVar
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +16,7 @@ class BaseRepository(Generic[ModelType]):
         self.model = model
         self.session = session
 
-    async def get_by_id(self, item_id: str) -> ModelType | None:
+    async def get_by_id(self, item_id: UUID) -> ModelType | None:
         return await self.session.get(self.model, item_id)
 
     async def list_all(self, limit: int = 100, offset: int = 0) -> list[ModelType]:
