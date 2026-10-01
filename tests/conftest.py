@@ -20,10 +20,8 @@ TEST_DATABASE_URL = os.getenv(
     "postgresql+psycopg://scai:scaipassword@127.0.0.1:5432/scai?connect_timeout=5",
 )
 
-SYNC_DATABASE_URL = TEST_DATABASE_URL.replace("postgresql+psycopg://", "postgresql+psycopg://")
 
-
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def setup_database():
     """Create all tables synchronously before any async tests run."""
     sync_url = TEST_DATABASE_URL.replace("+psycopg", "")
@@ -33,7 +31,7 @@ def setup_database():
 
 
 @pytest_asyncio.fixture
-async def db_session():
+async def db_session(setup_database: None):
     """Yields an async SQLAlchemy session with NullPool."""
     engine = create_async_engine(
         TEST_DATABASE_URL,
