@@ -57,7 +57,7 @@ class SupplierRow(Base):
     name: Mapped[str] = mapped_column(String(200))
     country: Mapped[str] = mapped_column(String(2))
     region: Mapped[str] = mapped_column(String(200))
-    tier: Mapped[SupplierTier] = mapped_column(enum_column(SupplierTier, "supplier_tier"))
+    tier: Mapped[SupplierTier] = mapped_column(enum_column(SupplierTier, name="supplier_tier"))
     reliability_score: Mapped[float] = mapped_column(Float)
 
 
@@ -142,7 +142,7 @@ class PurchaseOrderRow(Base):
     quantity: Mapped[int] = mapped_column(Integer)
     unit_price: Mapped[Decimal] = mapped_column(_MONEY)
     status: Mapped[PurchaseOrderStatus] = mapped_column(
-        enum_column(PurchaseOrderStatus, "purchase_order_status")
+        enum_column(PurchaseOrderStatus, name="purchase_order_status")
     )
     ordered_at: Mapped[datetime] = mapped_column(_TIMESTAMPTZ)
     expected_at: Mapped[datetime] = mapped_column(_TIMESTAMPTZ)
@@ -151,7 +151,6 @@ class PurchaseOrderRow(Base):
 class ShipmentRow(Base):
     __tablename__ = "shipments"
     __table_args__ = (
-        # Mirrors the domain rule: delivered_at is set if and only if delivered.
         CheckConstraint(
             f"(status = '{ShipmentStatus.DELIVERED.value}') = (delivered_at IS NOT NULL)",
             name="delivered_at_matches_status",
@@ -164,8 +163,12 @@ class ShipmentRow(Base):
     purchase_order_id: Mapped[UUID] = mapped_column(
         ForeignKey("purchase_orders.id", ondelete="RESTRICT")
     )
-    mode: Mapped[TransportMode] = mapped_column(enum_column(TransportMode, "transport_mode"))
-    status: Mapped[ShipmentStatus] = mapped_column(enum_column(ShipmentStatus, "shipment_status"))
+    mode: Mapped[TransportMode] = mapped_column(
+        enum_column(TransportMode, name="shipment_transport_mode")
+    )
+    status: Mapped[ShipmentStatus] = mapped_column(
+        enum_column(ShipmentStatus, name="shipment_status")
+    )
     origin_port: Mapped[str] = mapped_column(String(200))
     destination_port: Mapped[str] = mapped_column(String(200))
     planned_eta: Mapped[datetime] = mapped_column(_TIMESTAMPTZ)
@@ -178,8 +181,6 @@ class DisruptionEventRow(Base):
     __table_args__ = (
         CheckConstraint(f"country ~ '{_COUNTRY_RE}'", name="country_format"),
         CheckConstraint("ended_at IS NULL OR ended_at >= started_at", name="ended_after_started"),
-        # Partial index: the Risk agent mostly asks "what is open right now?",
-        # so index only the open events instead of the whole history.
         Index(
             "ix_disruption_events_open_country_region",
             "country",
@@ -189,8 +190,12 @@ class DisruptionEventRow(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    type: Mapped[DisruptionType] = mapped_column(enum_column(DisruptionType, "disruption_type"))
-    severity: Mapped[Severity] = mapped_column(enum_column(Severity, "severity"))
+    type: Mapped[DisruptionType] = mapped_column(
+        enum_column(DisruptionType, name="disruption_event_type")
+    )
+    severity: Mapped[Severity] = mapped_column(
+        enum_column(Severity, name="disruption_event_severity")
+    )
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text, server_default="")
     country: Mapped[str] = mapped_column(String(2))
@@ -205,14 +210,12 @@ class DocumentChunkRow(Base):
     __tablename__ = "document_chunks"
     __table_args__ = (
         CheckConstraint("chunk_index >= 0", name="chunk_index_non_negative"),
-        # Re-ingesting the same source must not create duplicate chunks.
         UniqueConstraint(
             "source_ref", "chunk_index", name="uq_document_chunks_source_ref_chunk_index"
         ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    # Where the text came from, e.g. "disruption_events:<uuid>" or a file name.
     source_ref: Mapped[str] = mapped_column(String(300))
     chunk_index: Mapped[int] = mapped_column(Integer)
     content: Mapped[str] = mapped_column(Text)

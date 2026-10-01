@@ -1,15 +1,10 @@
-"""Declarative base with deterministic constraint names.
+import enum
 
-Alembic needs stable names to alter or drop constraints later, so we set a
-naming convention up front instead of letting Postgres invent them.
-"""
-
-from enum import StrEnum
-
-from sqlalchemy import Enum, MetaData
+import sqlalchemy as sa
+from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
 
-NAMING_CONVENTION = {
+POSTGRES_NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
@@ -19,22 +14,25 @@ NAMING_CONVENTION = {
 
 
 class Base(DeclarativeBase):
-    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    """Declarative base class with standard PostgreSQL naming conventions."""
+
+    metadata = MetaData(naming_convention=POSTGRES_NAMING_CONVENTION)
 
 
-def enum_column(enum_cls: type[StrEnum], name: str) -> Enum:
-    """Store a StrEnum as VARCHAR plus a CHECK constraint (not a native enum).
+def enum_column(
+    enum_cls: type[enum.Enum],
+    name: str | None = None,
+    native_enum: bool = False,
+) -> sa.Enum:
+    """Returns a configured sa.Enum column type for mapped_column().
 
-    Native Postgres enums are painful to change in migrations (adding a
-    value needs ALTER TYPE, removing one is worse). VARCHAR + CHECK is
-    just as safe and easy to evolve.
+    Uses native_enum=False and create_constraint=False to allow SQLAlchemy 2.0
+    to infer string length automatically without generating duplicate DDL constraints.
     """
-    return Enum(
+    return sa.Enum(
         enum_cls,
         name=name,
-        native_enum=False,
-        length=32,
-        create_constraint=True,
-        validate_strings=True,
-        values_callable=lambda e: [member.value for member in e],
+        native_enum=native_enum,
+        create_constraint=False,
+        values_callable=lambda x: [e.value for e in x],
     )
